@@ -1,0 +1,10 @@
+# Minimal requirements for local use
+# Python 3.10+ recommended
+
+# Data handling
+pandas~=2.2
+openpyxl~=3.1
+
+# Dashboard
+dash~=2.17
+plotly~=5.22

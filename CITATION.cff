@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this project, please cite it as below."
+title: "TodesdatenDeutschland — Lokales Dash-Dashboard"
+abstract: "Ein lokales Plotly-Dash-Dashboard zur Visualisierung von Todesursachen in Deutschland (1990–2023), getrennt nach männlich/weiblich; Datenbasis: Destatis Tabelle 23211-0001."
+authors:
+  - family-names: "Ludwig"
+    given-names: "Florian"
+license: "MIT"  # Passe an deine tatsächliche Code-Lizenz an (z. B. MIT oder Apache-2.0)
+version: "1.0.0"
+date-released: "2025-09-05"
+repository-code: "https://github.com/Flolu82/TodesdatenDeutschland"
+keywords:
+  - Dash
+  - Plotly
+  - Germany
+  - Mortality
+  - Destatis
