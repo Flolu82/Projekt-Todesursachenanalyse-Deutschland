@@ -22,5 +22,5 @@ uv venv
 echo "[2/3] Abhängigkeiten installieren (requirements.txt)"
 uv pip install -r requirements.txt
 
-echo "[3/3] Starte App (uv run todesursachen_dash_lokal.py)"
-uv run todesursachen_dash_lokal.py
+echo "[3/3] Starte App (uv run app.py)"
+uv run app.py

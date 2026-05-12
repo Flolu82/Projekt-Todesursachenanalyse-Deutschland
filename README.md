@@ -1,87 +1,129 @@
-# TodesdatenDeutschland — Lokales Dash-Dashboard
+# Todesursachen-Analyse Deutschland 1980–2024
 
-Ein **lokales** Plotly‑Dash‑Dashboard zur Visualisierung ausgewählter **Todesursachen** in Deutschland, getrennt nach **männlich/weiblich** (1990–2023).  
-Diese Version ist **nur für lokalen Gebrauch** gedacht. Unten findest du Setup, Datenformat und Start.
+Interaktives Dashboard zur Visualisierung der amtlichen Sterbefalldaten des
+Statistischen Bundesamts. Refactor + Production-Build der Original-Version
+(educx-Abschlussprojekt, 09/2025).
 
-> 💡 **GCP-Hinweis (optional):** Wenn du die App später in der Google Cloud betreiben willst, ergänze im Skript:
-> ```python
-> server = app.server
-> ```
-> und starte z. B. mit `gunicorn todesursachen_dash_lokal:server`. (Cloud-Dateien sind hier absichtlich nicht enthalten.)
+**Live-Demo:** [dash.fl-pro-consulting.de](https://dash.fl-pro-consulting.de)
+**Kontext-Seite:** [fl-pro-consulting.de/selbst-forschen](https://fl-pro-consulting.de/selbst-forschen/)
 
----
+## Was die App kann
 
-## Projektstruktur
+- Zeitreihen für ~80 Todesursachen-Kategorien (1980–2024, 45 Jahre)
+- Vergleich männlich / weiblich / Gesamt
+- 3 Darstellungsmodi: Linien · Gestapelt · Anteil %
+- Zeitraum frei wählbar via RangeSlider
+- **Altersverteilung pro Ursache und Jahr** (17 Altersgruppen)
+- Deutsche Tausender-Trennung, Lade-Spinner, Healthcheck
+- Production-ready: Docker + gunicorn + Reverse-Proxy
+
+## Was sich vs. Original-Version (09/2025) geändert hat
+
+Vollständiger Changelog steht **im Code-Header von `app.py`** (Punkte 1–13). Kurzfassung:
+
+| Bereich | Vorher | Jetzt |
+|---|---|---|
+| Datenumfang | 1990–2023, nur Jahr × Geschlecht | **1980–2024, plus 17 Altersgruppen** |
+| Tabs | – | „Zeitverlauf" + **„Altersverteilung"** (neu) |
+| View-Modi | nur Linien | Linien · Gestapelt · Anteil % |
+| Default | 2 Ursachen alphabetisch | Top-5 nach Toten im neuesten Jahr |
+| Filter | nur Ursache | + Geschlecht + Zeitraum + Jahr (im Age-Tab) |
+| Sprache | DE/EN mix | komplett Deutsch |
+| Zahlen-Format | `72,517` (US) | `72.517` (DE) |
+| Production | `app.run_server(debug=True)` (dev only) | `server = app.server` für gunicorn, Docker, `/health` |
+| Performance | Excel bei jedem Request neu lesen | `@lru_cache`, einmal pro Prozess |
+| Parser | hardcoded `skiprows=5` | sucht Header-Zeilen via Content-Match (Layout-tolerant) |
+| Versionen | Dash 2.17 + Plotly 5.22 + Pandas 2.2 | Dash 2.18 + Plotly 5.24 + Pandas 2.2 + Flask 3 + gunicorn 23 |
+
+## Daten
+
+| Datei | Inhalt | Zeitraum | Quelle |
+|---|---|---|---|
+| `data/23211-0001_de.xlsx` | Todesursache × Jahr × Geschlecht | 1980–2024 | Destatis [23211-0001](https://www-genesis.destatis.de/datenbank/online/statistic/23211/table/23211-0001) |
+| `data/23211-0002_de.xlsx` | + 17 Altersgruppen | 1980–2024 | Destatis [23211-0002](https://www-genesis.destatis.de/datenbank/online/statistic/23211/table/23211-0002) |
+
+Stand der Daten: **12.05.2026**.
+
+## Setup
+
+### Variante A — Lokal (Python + uv)
+
+```bash
+# macOS/Linux
+./run_local.sh
+
+# Windows
+run_local.bat
+```
+
+uv installiert die Abhängigkeiten automatisch in eine venv und startet `app.py`.
+Erreichbar dann unter http://127.0.0.1:8080.
+
+### Variante B — Lokal (klassisch ohne uv)
+
+```bash
+python -m venv .venv
+.venv/bin/activate  # bzw. .venv\Scripts\activate auf Windows
+pip install -r requirements.txt
+python app.py
+```
+
+### Variante C — Production (Docker + Reverse Proxy)
+
+```bash
+docker compose up -d --build
+```
+
+Container läuft dann mit gunicorn auf Port 8080 im Docker-Netz `web-proxy`
+(externes Netz, muss existieren — siehe `docker-compose.yml`). Reverse Proxy
+(Nginx, Caddy, Traefik) auf den Container-Port routen, TLS via Let's Encrypt.
+
+Health-Check Endpoint:
+```
+GET /health
+→ {"status":"ok","causes":81,"year_min":1980,"year_max":2024,"age_years":45}
+```
+
+## Daten aktualisieren
+
+Destatis veröffentlicht jährlich (ca. November/Dezember). Update-Workflow:
+
+1. Auf [GENESIS-Online 23211-0001](https://www-genesis.destatis.de/datenbank/online/statistic/23211/table/23211-0001) gehen
+   - Werteansicht: alle Jahre, beide Geschlechter + Insgesamt, alle Todesursachen
+   - Format: **Excel (.xlsx)**, Sprache **Deutsch**
+   - Datei als `data/23211-0001_de.xlsx` ablegen
+2. Dasselbe für [Tabelle 23211-0002](https://www-genesis.destatis.de/datenbank/online/statistic/23211/table/23211-0002) (mit Altersgruppen)
+3. Container neu starten: `docker compose restart` (das `data/`-Volume wird neu eingelesen,
+   kein Rebuild nötig)
+
+Der Parser ist robust gegen kleine Layout-Änderungen (sucht Header-Zeilen anhand
+Content-Match wie „männlich" / „unter 1 Jahr"), nicht anhand fester Zeilenindizes.
+
+## Architektur
+
 ```
 .
-├─ todesursachen_dash_lokal.py     # Dash-App (lokal starten)
-├─ Todesdaten8.xlsx                # Excel-Daten (wird versioniert)
-├─ requirements.txt
-├─ run_local.bat                   # Windows-Starter (uv)
-├─ run_local.sh                    # macOS/Linux-Starter (uv)
-├─ DATA-LICENSE                    # Datenlizenz & Attribution
-├─ CITATION.cff                    # Zitierangaben
-├─ docs/                           # Versionierte Begleitdokumente (PDFs u. Ä.)
-│  └─ (z. B. Whitepaper_*.pdf)
-└─ data/                           # Nicht versionierte Zusatzdaten
-   └─ README.md
-```
-**Hinweis:** Verschiebe Dokumente, die mit ins Repo sollen (z. B. Whitepaper/PDFs), nach `./docs/`.  
-Der Ordner `./data/` wird von Git **ignoriert** (bis auf `data/README.md`).
-
----
-
-## Setup (lokal)
-
-### 1) Umgebung mit uv (empfohlen)
-```powershell
-uv venv
-uv pip install -r requirements.txt
+├── app.py                — Dash-App: Loader + Layout + Callbacks + Health-Endpoint
+│                           Detaillierter Changelog im File-Header (Zeilen 1–145)
+├── requirements.txt      — Python-Deps (pinned major)
+├── data/
+│   ├── 23211-0001_de.xlsx — Jahres-Daten 1980–2024
+│   └── 23211-0002_de.xlsx — Alters-Daten 1980–2024
+├── Dockerfile            — Production-Image (python:3.12-slim + gunicorn)
+├── docker-compose.yml    — Service-Block (read-only Daten-Volume, 384MB limit)
+├── run_local.sh / .bat   — uv-Starter für lokale Entwicklung
+├── CITATION.cff          — Zitierangaben
+├── DATA-LICENSE          — Datenlizenz Destatis
+└── README.md             — diese Datei
 ```
 
-(Alternativ klassische venv: `python -m venv .venv` …)
+## Lizenz
 
-### 2) Daten ablegen
-Lege deine Excel-Datei als **`Todesdaten8.xlsx`** **ins Projektverzeichnis**.  
-Das Skript erwartet das Blatt **`23211-0001`** (GENESIS-Layout). Metadatenzeilen werden übersprungen; die Kopfzeilen entstehen aus **Jahr** & **Geschlecht** (z. B. `1995 männlich`).
+- Code: MIT (siehe Git-History für Autorschaft)
+- Daten: siehe `DATA-LICENSE` (Destatis-Datenlizenz)
 
-**Im Skript werden u. a. gesetzt:**
-- `TDU Code`, `Todesursachen` als erste Spaltennamen
-- Jahres‑Spalten **1990–2023** als `"<Jahr> männlich"` bzw. `"<Jahr> weiblich"`
-- Numerische Umwandlung der genannten Jahres‑Spalten
+## Quellen
 
-### 3) Starten
-```powershell
-uv run .\todesursachen_dash_lokal.py
-# oder
-python todesursachen_dash_lokal.py
-```
-Browser: http://127.0.0.1:8050
-
----
-
-## Bedienung
-- Wähle im **Dropdown** eine oder mehrere Todesursachen aus.
-- Pro Ursache zwei Linien: **männlich** (durchgezogen) und **weiblich** (gepunktet).
-
----
-
-## Datenquelle & Lizenz
-- **Quelle:** Statistisches Bundesamt (Destatis) – *Todesursachenstatistik*, Tabelle **23211‑0001** (GENESIS‑Online).  
-- **Lizenz (typisch für amtliche DE‑Daten):** **Datenlizenz Deutschland – Namensnennung – Version 2.0 (DL‑DE BY 2.0)**.  
-  → Erforderlich: **Namensnennung**, **Lizenzlink**, **Hinweis auf Änderungen**.  
-- Details siehe **`DATA-LICENSE`** (Attribution dort anpassen, insbesondere Abrufdatum).
-
-> 🔒 **Datenschutz:** Es werden ausschließlich **aggregierte** Daten verwendet – keine personenbezogenen Mikrodaten.
-
----
-
-## Zitieren
-Eine **`CITATION.cff`** erleichtert korrekte Zitierangaben (GitHub zeigt dann „Cite this repository“).
-
----
-
-## Support
-Issues oder Fragen? Gern per Mail oder Issue‑Tracker. Viel Erfolg beim lokalen Einsatz!
-
-*Stand: 2025-09-05*
+- Statistisches Bundesamt: Tabellen [23211-0001](https://www-genesis.destatis.de/datenbank/online/statistic/23211/table/23211-0001) + [23211-0002](https://www-genesis.destatis.de/datenbank/online/statistic/23211/table/23211-0002)
+- Plotly Dash: [dash.plotly.com](https://dash.plotly.com/)
+- Original-Repo-Historie (educx-Abschluss 09/2025): siehe `git log`

@@ -1,0 +1,16 @@
+.git
+.gitignore
+.github
+.venv
+__pycache__
+*.pyc
+*.pyo
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+README.md
+run_local.sh
+run_local.bat
+DATA-LICENSE
+CITATION.cff

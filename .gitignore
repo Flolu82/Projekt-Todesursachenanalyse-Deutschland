@@ -89,11 +89,14 @@ desktop.ini
 # Project-specific ignores
 # --------------------------
 
-# Keep the main Excel file in Git (Todesdaten8.xlsx) — DO NOT ignore it.
+# Daten-Tabellen werden in Git getrackt (Stand 12.05.2026: ~1.7 MB total).
 
 # Ignore everything inside /data except a placeholder readme
+# Standard-Datenfiles erlauben, sonst alles in data/ ignorieren
 /data/*
 !data/README.md
+!data/23211-0001_de.xlsx
+!data/23211-0002_de.xlsx
 
 # Plotly image exports (if you enable kaleido/exports)
 *.pdf
